@@ -1,0 +1,3 @@
+[submodule "Verilog-LIB"]
+	path = Verilog-LIB
+	url = https://github.com/ccapen/Verilog-LIB.git
