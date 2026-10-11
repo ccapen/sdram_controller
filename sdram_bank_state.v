@@ -26,7 +26,7 @@ module sdram_bank_state #(
 );
 
 `include "./sdram_adapt/sdram_params_h.v"
-`include "../Verilog-LIB/verilog_math.v"
+`include "./Verilog-LIB/verilog_math.v"
 
 localparam CLK_PERIOD	= (1_000_000_000 / CLK_FREQ);
 localparam TRCD			= int_ceil_div(`tRCD , CLK_PERIOD);
