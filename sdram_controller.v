@@ -126,12 +126,12 @@ begin
 			else 
 				R_ref_rstn <= W_init_done;
 		end
-		intelli_refresh#(
+		sdram_intelli_refresh#(
 			.CLK_FREQ			(CLK_FREQ		),
 			.REFRESH_TIME_MS	(REFRESH_TIME_MS),
 			.REFRESH_LINE		(REFRESH_LINE	),
 			.REFRESH_SLICE		(REFRESH_SLICE	)
-		) intelli_refresh_u(
+		) sdram_intelli_refresh_u(
 			.I_clk						(I_clk),
 			.I_rstn						(R_ref_rstn),
 
@@ -339,6 +339,8 @@ sdram_bank_manage #(
 	.I_rdqm						(W_rdqm),
 	.O_rready					(W_rready),
 
+	.I_refresh_immediately		(W_refresh_immediately),
+
 	.O_all_precharged			(W_all_precharged),
 	.O_precharge_valid			(W_precharge_valid),
 	.O_precharge_bank_addr		(W_precharge_bank_addr),
@@ -381,7 +383,6 @@ sdram_operate #(
 	.I_init_bank				(W_init_bank),
 	.I_init_addr				(W_init_addr),
 
-	.I_refresh_immediately		(W_refresh_immediately),
 	.I_refresh_no_immediately	(W_refresh_no_immediately),
 	.O_refresh_ready			(W_refresh_ready),
 

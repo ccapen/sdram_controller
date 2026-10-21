@@ -31,15 +31,15 @@ wire 		W_wbl = 1'b0;
 wire [1:0]	W_test_mode = 2'b0;
 wire [2:0]	W_cas_latency = 3'b011;
 wire 		W_bt = (BURSTTYPE == "INTERLEAVE");
-reg [2:0]	W_burst_length;
+wire [2:0]	W_burst_length;
 
-always @(*)begin
+begin
 	case (BURSTLENGTH)
-		1:	W_burst_length = 3'b000;
-		2:	W_burst_length = 3'b001;
-		4:	W_burst_length = 3'b010;
-		8:	W_burst_length = 3'b011;
-		default:W_burst_length = 3'b000;
+		1:	assign W_burst_length = 3'b000;
+		2:	assign W_burst_length = 3'b001;
+		4:	assign W_burst_length = 3'b010;
+		8:	assign W_burst_length = 3'b011;
+		default:assign W_burst_length = 3'b000;
 	endcase
 end
 

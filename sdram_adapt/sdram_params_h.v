@@ -6,6 +6,7 @@
 `define tRCD	18	/*row active to column select_same bank*/
 `define tRP		15	/*precharge to refresh/row active_same bank*/
 `define tRAS	35	/*row active to precharge_same bank, max(100us)*/
+`define tRASmax	100_000	/*row active to precharge_same bank, max(100us)*/
 `define tRFC    55    /*refresh cycle time*/
 `define tWR_clk		2	/*last write to precharge_same bank*/
 `define tCCD_clk	1	/*column change_same bank*/

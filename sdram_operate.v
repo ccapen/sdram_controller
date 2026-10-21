@@ -20,7 +20,6 @@ module sdram_operate #(
 	input	[PHYBANKWIDTH-1:0]	I_init_bank,
 	input	[PHYADDRWIDTH-1:0]	I_init_addr,
 
-	input						I_refresh_immediately,
 	input						I_refresh_no_immediately,
 	output						O_refresh_ready,
 
@@ -172,8 +171,6 @@ always @(posedge I_clk or negedge I_rstn) begin
 		R_active_prepared <= 1'b0;
 	else if(O_refresh_ready || (R_cnt_refresh > 1'b1))
 		R_active_prepared <= 1'b0;
-	else if(I_refresh_immediately)
-		R_active_prepared <= 1'b0;
 	else if(((TRRD > 1) && O_active_ready) || (R_cnt_active > 1'b1))
 		R_active_prepared <= 1'b0;
 	else 
@@ -202,10 +199,10 @@ always @(posedge I_clk or negedge I_rstn) begin
 		R_read_prepared <= 1'b1;
 end
 
-assign O_refresh_ready = R_refresh_prepared && (I_refresh_immediately || (I_refresh_no_immediately && (!I_active_valid)));
+assign O_refresh_ready = R_refresh_prepared && (I_refresh_no_immediately && (!I_active_valid));
 assign O_wr_rd_ready = I_wr_rd_valid && (I_wr_rd_is_rd ? R_read_prepared : R_write_prepared);
-assign O_active_ready = I_active_valid && (!(O_wr_rd_ready && I_wr_rd_cmden)) && R_active_prepared && (!I_refresh_immediately);
-assign O_precharge_ready = I_precharge_valid && (!O_active_ready) && (!(O_wr_rd_ready && I_wr_rd_cmden)) && R_precharge_prepared;
+assign O_precharge_ready = I_precharge_valid && (!(O_wr_rd_ready && I_wr_rd_cmden)) && R_precharge_prepared;
+assign O_active_ready = I_active_valid && (!O_precharge_ready) && (!(O_wr_rd_ready && I_wr_rd_cmden)) && R_active_prepared;
 
 
 
@@ -302,6 +299,7 @@ always @(posedge I_clk or negedge I_rstn) begin
 		(!I_init_done):						R_addr <= I_init_addr;
 		(O_wr_rd_ready && I_wr_rd_cmden):	R_addr <= {{(PHYADDRWIDTH-COLADDRWIDTH){1'b0}}, I_wr_rd_addr[COLADDRWIDTH-1:0]};
 		(O_active_ready):					R_addr <= I_active_row_addr;
+		(O_precharge_ready):				R_addr <= {1'b0, {(PHYADDRWIDTH-1){1'bx}}};
 		default:							R_addr <= {PHYADDRWIDTH{1'bx}};
 	endcase
 

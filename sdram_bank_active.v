@@ -24,9 +24,10 @@ module sdram_bank_active #(
 	input	[PHYDQMWIDTH-1:0]	I_rdqm,
 	output						O_rready,
 
-	input	[BANKNUM-1:0]		I_bank_precharge_prepared,
-	input	[BANKNUM-1:0]		I_bank_active_prepared,
-	input	[BANKNUM-1:0]		I_bank_is_active,
+	input						I_refresh_immediately,
+
+	input	[BANKNUM-1:0]		I_bank_logic_active_prepared,
+	input	[BANKNUM-1:0]		I_bank_is_logic_active,
 	input	[FLATROWADDRWIDTH-1:0]	I_bank_active_row_flat,
 	output 						O_wr_inc,
 	output 	[BANKADDRWIDTH-1:0]	O_wr_inc_ba,
@@ -149,6 +150,8 @@ wire [BANKADDRWIDTH-1:0]	W_waddr_ba	= W_waddr[ADDRWIDTH-1 : ADDRWIDTH-BANKADDRWI
 wire [BANKADDRWIDTH-1:0]	W_raddr_ba	= W_raddr[ADDRWIDTH-1 : ADDRWIDTH-BANKADDRWIDTH];
 wire [ROWADDRWIDTH-1:0]		W_waddr_row	= W_waddr[ADDRWIDTH-BANKADDRWIDTH-1 : ADDRWIDTH-BANKADDRWIDTH-ROWADDRWIDTH];
 wire [ROWADDRWIDTH-1:0]		W_raddr_row	= W_raddr[ADDRWIDTH-BANKADDRWIDTH-1 : ADDRWIDTH-BANKADDRWIDTH-ROWADDRWIDTH];
+wire [BANKADDRWIDTH-1:0]	W_pre_waddr_ba	= W_pre_waddr[ADDRWIDTH-1 : ADDRWIDTH-BANKADDRWIDTH];
+wire [BANKADDRWIDTH-1:0]	W_pre_raddr_ba	= W_pre_raddr[ADDRWIDTH-1 : ADDRWIDTH-BANKADDRWIDTH];
 wire [ROWADDRWIDTH-1:0]		W_pre_waddr_row	= W_pre_waddr[ADDRWIDTH-BANKADDRWIDTH-1 : ADDRWIDTH-BANKADDRWIDTH-ROWADDRWIDTH];
 wire [ROWADDRWIDTH-1:0]		W_pre_raddr_row	= W_pre_raddr[ADDRWIDTH-BANKADDRWIDTH-1 : ADDRWIDTH-BANKADDRWIDTH-ROWADDRWIDTH];
 
@@ -162,8 +165,8 @@ reg R_active_is_read_loop;
 reg W_active_is_rd;
 reg [BANKADDRWIDTH-1:0] W_active_bank_addr;
 reg [ROWADDRWIDTH-1:0] W_active_row_addr;
-wire W_active_wvalid	= W_wvalid && I_bank_active_prepared[W_waddr_ba] && (!W_actfifo_wfull);
-wire W_active_rvalid	= W_rvalid && I_bank_active_prepared[W_raddr_ba] && (!W_actfifo_rfull);
+wire W_active_wvalid	= W_wvalid && I_bank_logic_active_prepared[W_waddr_ba] && (!W_actfifo_wfull);
+wire W_active_rvalid	= W_rvalid && I_bank_logic_active_prepared[W_raddr_ba] && (!W_actfifo_rfull);
 
 always @(posedge I_clk or negedge I_rstn) begin
 	if(!I_rstn)
@@ -174,21 +177,21 @@ end
 
 always @(*)begin
 	case({W_active_wvalid, W_active_rvalid})
-		2'b01:	W_active_is_rd <= 1'b1;
-		2'b10:	W_active_is_rd <= 1'b0;
-		default:W_active_is_rd <= R_active_is_read_loop;
+		2'b01:	W_active_is_rd = 1'b1;
+		2'b10:	W_active_is_rd = 1'b0;
+		default:W_active_is_rd = R_active_is_read_loop;
 	endcase
 
 	case({W_active_wvalid, W_active_rvalid})
-		2'b01:	W_active_bank_addr <= W_raddr_ba;
-		2'b10:	W_active_bank_addr <= W_waddr_ba;
-		default:W_active_bank_addr <= R_active_is_read_loop ? W_raddr_ba : W_waddr_ba;
+		2'b01:	W_active_bank_addr = W_raddr_ba;
+		2'b10:	W_active_bank_addr = W_waddr_ba;
+		default:W_active_bank_addr = R_active_is_read_loop ? W_raddr_ba : W_waddr_ba;
 	endcase
 
 	case({W_active_wvalid, W_active_rvalid})
-		2'b01:	W_active_row_addr <= W_raddr_row;
-		2'b10:	W_active_row_addr <= W_waddr_row;
-		default:W_active_row_addr <= R_active_is_read_loop ? W_raddr_row : W_waddr_row;
+		2'b01:	W_active_row_addr = W_raddr_row;
+		2'b10:	W_active_row_addr = W_waddr_row;
+		default:W_active_row_addr = R_active_is_read_loop ? W_raddr_row : W_waddr_row;
 	endcase
 end
 
@@ -198,7 +201,7 @@ timing_split #(
 	.I_clk			(I_clk),
 	.I_rstn			(I_rstn),
 
-	.I_valid		(W_active_rvalid || W_active_wvalid),
+	.I_valid		((W_active_rvalid || W_active_wvalid) && (!I_refresh_immediately)),
 	.I_data			({W_active_bank_addr, W_active_row_addr}),
 	.O_ready		(W_active_ready),
 
@@ -220,37 +223,37 @@ reg R_rrow_match;
 always @(posedge I_clk or negedge I_rstn) begin
 	if(!I_rstn)
 		R_wrow_inherit <= 1'b0;
-	else if(W_pre_wready)
-		R_wrow_inherit <= (W_pre_waddr_row == W_waddr_row);
+	else if(W_active_ready && (!W_active_is_rd) && W_pre_wready)
+		R_wrow_inherit <= ({W_pre_waddr_ba, W_pre_waddr_row} == {W_waddr_ba, W_waddr_row});
 	else 
-		R_wrow_inherit <= R_wrow_inherit;
+		R_wrow_inherit <= 1'b0;
 
 	if(!I_rstn)
 		R_rrow_inherit <= 1'b0;
-	else if(W_pre_rready)
-		R_rrow_inherit <= (W_pre_raddr_row == W_raddr_row);
+	else if(W_active_ready && ( W_active_is_rd) && W_pre_rready)
+		R_rrow_inherit <= ({W_pre_raddr_ba, W_pre_raddr_row} == {W_raddr_ba, W_raddr_row});
 	else 
-		R_rrow_inherit <= R_rrow_inherit;
+		R_rrow_inherit <= 1'b0;
 
 	if(!I_rstn)
 		R_wrow_match <= 1'b0;
 	else if(W_wvalid && (!W_wready))
-		R_wrow_match <= (W_waddr_row == W_bank_active_row[W_waddr_ba]) && I_bank_is_active[W_waddr_ba];
+		R_wrow_match <= (W_waddr_row == W_bank_active_row[W_waddr_ba]) && I_bank_is_logic_active[W_waddr_ba];
 	else 
-		R_wrow_match <= (W_pre_waddr_row == W_bank_active_row[W_waddr_ba]) && I_bank_is_active[W_waddr_ba];
+		R_wrow_match <= (W_pre_waddr_row == W_bank_active_row[W_pre_waddr_ba]) && I_bank_is_logic_active[W_pre_waddr_ba];
 
 	if(!I_rstn)
 		R_rrow_match <= 1'b0;
 	else if(W_rvalid && (!W_rready))
-		R_rrow_match <= (W_raddr_row == W_bank_active_row[W_raddr_ba]) && I_bank_is_active[W_raddr_ba];
+		R_rrow_match <= (W_raddr_row == W_bank_active_row[W_raddr_ba]) && I_bank_is_logic_active[W_raddr_ba];
 	else 
-		R_rrow_match <= (W_pre_raddr_row == W_bank_active_row[W_raddr_ba]) && I_bank_is_active[W_raddr_ba];
+		R_rrow_match <= (W_pre_raddr_row == W_bank_active_row[W_pre_raddr_ba]) && I_bank_is_logic_active[W_pre_raddr_ba];
 end
 
-assign W_wready = W_wvalid && (!W_actfifo_wfull) && (!I_bank_precharge_prepared[W_waddr_ba]) && 
-						(R_wrow_inherit || R_wrow_match || (W_active_ready && (!W_active_is_rd)));
-assign W_rready = W_rvalid && (!W_actfifo_rfull) && (!I_bank_precharge_prepared[W_raddr_ba]) && 
-						(R_rrow_inherit || R_rrow_match || (W_active_ready && ( W_active_is_rd)));
+assign W_wready = W_wvalid && (!W_actfifo_wfull) && (R_wrow_match || 
+						R_wrow_inherit || (W_active_ready && (!W_active_is_rd)));
+assign W_rready = W_rvalid && (!W_actfifo_rfull) && (R_rrow_match || 
+						R_rrow_inherit || (W_active_ready && ( W_active_is_rd)));
 assign O_wr_inc		= W_wready;
 assign O_wr_inc_ba	= W_waddr_ba;
 assign O_rd_inc		= W_rready;

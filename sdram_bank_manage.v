@@ -27,6 +27,8 @@ module sdram_bank_manage #(
 	input	[PHYDQMWIDTH-1:0]	I_rdqm,
 	output						O_rready,
 
+	input						I_refresh_immediately,
+
 	output						O_all_precharged,
 	output						O_precharge_valid,
 	output	[BANKADDRWIDTH-1:0]	O_precharge_bank_addr,
@@ -54,9 +56,9 @@ wire [BANKADDRWIDTH-1:0] W_wr_inc_ba;
 wire W_rd_inc;
 wire [BANKADDRWIDTH-1:0] W_rd_inc_ba;
 wire [BANKNUM-1:0] W_bank_precharge_prepared;
-wire [BANKNUM-1:0] W_bank_active_prepared;
+wire [BANKNUM-1:0] W_bank_logic_active_prepared;
 wire [BANKNUM-1:0] W_bank_wr_rd_prepared;
-wire [BANKNUM-1:0] W_bank_is_active;
+wire [BANKNUM-1:0] W_bank_is_logic_active;
 wire [BANKNUM-1:0] W_bank_is_phy_active;
 wire [ROWADDRWIDTH-1:0]	W_bank_active_row[BANKNUM-1:0];
 wire [RWBUFCNTWIDTH-1:0] W_bank_rw_num[BANKNUM-1:0];
@@ -111,18 +113,19 @@ sdram_bank_active #(
 	.I_rdqm						(I_rdqm),
 	.O_rready					(O_rready),
 
-	.I_bank_precharge_prepared	(W_bank_precharge_prepared),
-	.I_bank_active_prepared		(W_bank_active_prepared),
-	.I_bank_is_active			(W_bank_is_active),
-	.I_bank_active_row_flat		(W_bank_active_row_flat),
-	.O_wr_inc					(W_wr_inc),
-	.O_wr_inc_ba				(W_wr_inc_ba),
-	.O_rd_inc					(W_rd_inc),
-	.O_rd_inc_ba				(W_rd_inc_ba),
+	.I_refresh_immediately		(I_refresh_immediately),
 
-	.O_logic_active_valid		(W_logic_active_valid),
-	.O_logic_active_bank_addr	(W_logic_active_bank_addr),
-	.O_logic_active_row_addr	(W_logic_active_row_addr),
+	.I_bank_logic_active_prepared	(W_bank_logic_active_prepared),
+	.I_bank_is_logic_active			(W_bank_is_logic_active),
+	.I_bank_active_row_flat			(W_bank_active_row_flat),
+	.O_wr_inc						(W_wr_inc),
+	.O_wr_inc_ba					(W_wr_inc_ba),
+	.O_rd_inc						(W_rd_inc),
+	.O_rd_inc_ba					(W_rd_inc_ba),
+
+	.O_logic_active_valid			(W_logic_active_valid),
+	.O_logic_active_bank_addr		(W_logic_active_bank_addr),
+	.O_logic_active_row_addr		(W_logic_active_row_addr),
 
 	.O_active_valid				(O_active_valid),
 	.O_active_bank_addr			(O_active_bank_addr),
@@ -216,25 +219,25 @@ generate
 			.RWBUFFERDEPTH		(ACTUAL_RWBUFFERDEPTH),
 			.RWBUFCNTWIDTH		(RWBUFCNTWIDTH)
 		) sdram_bank_state_u(
-			.I_clk					(I_clk),
-			.I_rstn					(I_rstn),
+			.I_clk						(I_clk),
+			.I_rstn						(I_rstn),
 
-			.I_precharge_valid		(I_precharge_ready && (O_precharge_bank_addr == k)),
-			.I_active_valid			(W_logic_active_valid && (W_logic_active_bank_addr == k)),
-			.I_active_row			(W_logic_active_row_addr),
-			.I_active_cmd			(I_active_ready && (O_active_bank_addr == k)),
-			.I_wr_inc				(W_wr_inc && (W_wr_inc_ba == k)),
-			.I_rd_inc				(W_rd_inc && (W_rd_inc_ba == k)),
-			.I_wr_rd_dec			(I_wr_rd_ready && (O_wr_rd_addr[ADDRWIDTH-1 : ADDRWIDTH-BANKADDRWIDTH] == k)),
-			.I_dec_cmden			(O_wr_rd_cmden),
-			.I_dec_is_rd			(O_wr_rd_is_rd),
-			.O_precharge_prepared	(W_bank_precharge_prepared[k]),
-			.O_active_prepared		(W_bank_active_prepared[k]),
-			.O_wr_rd_prepared		(W_bank_wr_rd_prepared[k]),
-			.O_is_active			(W_bank_is_active[k]),
-			.O_is_phy_active		(W_bank_is_phy_active[k]),
-			.O_active_row			(W_bank_active_row[k]),
-			.O_rw_num				(W_bank_rw_num[k])
+			.I_precharge_valid			(I_precharge_ready && (O_precharge_bank_addr == k)),
+			.I_logic_active_valid		(W_logic_active_valid && (W_logic_active_bank_addr == k)),
+			.I_logic_active_row			(W_logic_active_row_addr),
+			.I_phy_active_valid			(I_active_ready && (O_active_bank_addr == k)),
+			.I_wr_inc					(W_wr_inc && (W_wr_inc_ba == k)),
+			.I_rd_inc					(W_rd_inc && (W_rd_inc_ba == k)),
+			.I_wr_rd_dec				(I_wr_rd_ready && (O_wr_rd_addr[ADDRWIDTH-1 : ADDRWIDTH-BANKADDRWIDTH] == k)),
+			.I_dec_cmden				(O_wr_rd_cmden),
+			.I_dec_is_rd				(O_wr_rd_is_rd),
+			.O_precharge_prepared		(W_bank_precharge_prepared[k]),
+			.O_logic_active_prepared	(W_bank_logic_active_prepared[k]),
+			.O_wr_rd_prepared			(W_bank_wr_rd_prepared[k]),
+			.O_is_logic_active			(W_bank_is_logic_active[k]),
+			.O_is_phy_active			(W_bank_is_phy_active[k]),
+			.O_active_row				(W_bank_active_row[k]),
+			.O_rw_num					(W_bank_rw_num[k])
 		);
 	end
 endgenerate

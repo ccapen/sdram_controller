@@ -1,0 +1,12 @@
+*
+!*/
+!.gitignore
+
+!LICENSE
+!README.md
+
+!/*.v
+!/sdram_adapt/*
+!/sim/top_tb.v
+!/sim/sdram_adapt/*
+!/sim/model/.gitkeep

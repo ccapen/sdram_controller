@@ -1,4 +1,4 @@
-module intelli_refresh#(
+module sdram_intelli_refresh#(
 	parameter	CLK_FREQ		= 125_000_000,
 	parameter	REFRESH_TIME_MS	= 64,
 	parameter	REFRESH_LINE	= 4096,
